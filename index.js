@@ -1,49 +1,60 @@
 const fs = require('fs');
 
-const input = JSON.parse(fs.readFileSync('./input.json', 'utf8'));
-
-const n = input.keys.n;
-const k = input.keys.k;
-
-const points = decodeValues(input);
-points.sort((a, b) => a[0] - b[0]);
-const c = lagrangeInterpolation(points, k);
-console.log("constant term", c);
-
-
-function decodeValues(points) {
-    let decodedPoints = [];
-
-    for (let key in points) {
-        if (key === 'keys') continue;
-        const base = parseInt(points[key].base);
-        const value = points[key].value;
-        const x = parseInt(key);
-        const y = parseInt(value, base);
-        decodedPoints.push([x, y]);
-    }
-
-    return decodedPoints;
+// Function to decode a value based on the given base
+function decodeBase(value, base) {
+    return parseInt(value, base);
 }
 
-function lagrangeInterpolation(points, k) {
-    let c = 0;
+// Function to apply Lagrange interpolation and find the constant term (c)
+function lagrangeInterpolation(points) {
+    let constant = 0;
 
-    for (let i = 0; i < k; i++) {
-        const [xi, yi] = points[i];
-        let li = 1;
+    for (let i = 0; i < points.length; i++) {
+        let [x_i, y_i] = points[i];
+        let term = y_i;
 
-        for (let j = 0; j < k; j++) {
+        for (let j = 0; j < points.length; j++) {
             if (i !== j) {
-                const [xj, _] = points[j];
-                li *= (0 - xj) / (xi - xj);
+                let [x_j] = points[j];
+                term *= x_j / (x_j - x_i);
             }
         }
 
-        c += yi * li;
+        constant += term;
     }
 
-    return Math.round(c);
+    return Math.round(constant);
 }
 
+// Function to parse the input and solve for the constant term
+function solvePolynomial(filename) {
+    const data = fs.readFileSync(filename);
+    const input = JSON.parse(data);
 
+    const { n, k } = input.keys;
+    let points = [];
+
+    // Decode each root and store as (x, y)
+    Object.keys(input).forEach(key => {
+        if (!isNaN(key)) {
+            const base = parseInt(input[key].base, 10);
+            const value = input[key].value;
+            const x = parseInt(key, 10);
+            const y = decodeBase(value, base);
+
+            points.push([x, y]);
+        }
+    });
+
+    // Only use the first k points to solve the polynomial
+    const requiredPoints = points.slice(0, k);
+
+    // Calculate the constant term using Lagrange interpolation
+    const constantTerm = lagrangeInterpolation(requiredPoints);
+
+    console.log(`The secret constant term (c) is: ${constantTerm}`);
+}
+
+// Run the solver with the JSON test case
+solvePolynomial('testcase.json');
+solvePolynomial('testcase2.json');
